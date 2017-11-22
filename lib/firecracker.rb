@@ -1,7 +1,7 @@
 require "firecracker/udp_scraper"
 require "firecracker/tcp_scraper"
 require "digest/sha1"
-require "bencode_ext"
+require "bencode"
 require "uri"
 
 module Firecracker
@@ -13,7 +13,7 @@ module Firecracker
   def self.load(torrent, protocols = [:udp, :tcp])
     Firecracker.raw(File.read(torrent))
   end
-  
+
   #
   # @torrent String A raw torrent file.
   # @protocols Array<Symbol> Protocols that should be used. UDP is the fastest.
@@ -22,18 +22,18 @@ module Firecracker
   def self.raw(raw, protocols = [:udp, :tcp])
     Firecracker.calculate(raw.bdecode)
   end
-  
+
   #
   # @torrent Hash A Torrent hash generated using String#bdecode
   # @protocols Array<Symbol> Protocols that should be used. UDP is the fastest.
   # @return Hash Seeders, leechers and the amounts of downloads
   #
-  def self.calculate(torrent, protocols = [:udp, :tcp])    
+  def self.calculate(torrent, protocols = [:udp, :tcp])
     raise "At least one protocol needs to be passed" if protocols.empty?
-    
+
     # UDP related trackers
     if protocols.include?(:udp)
-      trackers = udp_trackers(torrent)      
+      trackers = udp_trackers(torrent)
       udp_results = trackers.map do |tracker|
         begin
           Firecracker::UDPScraper.new({
@@ -45,7 +45,7 @@ module Firecracker
         end
       end.reject(&:nil?).map(&:values).flatten
     end
-    
+
     # TCP related trackers
     if protocols.include?(:tcp)
       trackers = tcp_trackers(torrent)
@@ -63,7 +63,7 @@ module Firecracker
 
     (tcp_results + udp_results).inject{ |memo, el| memo.merge(el){ |k, old_v, new_v| old_v + new_v } }
   end
-  
+
   #
   # @torrent Hash A Torrent hash generated using String#bdecode
   # @return Array<String> A list of UDP trackers for the given torrent
@@ -71,15 +71,15 @@ module Firecracker
   def self.udp_trackers(torrent)
     announce      = torrent["announce"]
     announce_list = torrent["announce-list"]
-        
+
     trackers = announce_list.flatten.select{|tracker| tracker.match(/^udp:\/\//)}
     if announce.match(/^udp:\/\//)
       trackers << announce
     end
-    
+
     return trackers
   end
-  
+
   #
   # @torrent Hash A Torrent hash generated using String#bdecode
   # @return Array<String> A list of TCP trackers for the given torrent
@@ -87,16 +87,16 @@ module Firecracker
   def self.tcp_trackers(torrent)
     announce      = torrent["announce"]
     announce_list = torrent["announce-list"]
-        
+
     trackers = announce_list.flatten.select{|tracker| tracker.match(/^http:\/\//)}
     if announce.match(/^http:\/\//)
       trackers << announce
     end
-    
+
     # TPBs tracker is no longer active
     return trackers.map{|t| t.gsub(/announce/, "scrape")}.reject{|t| t.match(%r{thepiratebay})}
   end
-  
+
   #
   # @torrent Hash A Torrent hash generated using String#bdecode
   # @return String An info_hash. Read more about it here:

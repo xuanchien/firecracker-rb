@@ -1,4 +1,4 @@
-require "bencode_ext"
+require "bencode"
 require "timeout"
 
 module Firecracker
@@ -20,7 +20,7 @@ module Firecracker
         hashes: []
       }.merge(args)
     end
-    
+
     #
     # @return Do we have everyting that's needed
     #  to do the request.
@@ -31,21 +31,21 @@ module Firecracker
         @options[:hashes].count.between?(1, 72)
       ].all?
     end
-    
+
     #
     # @return Should we print debug ouput?
     #
     def debug?
       @options[:debug]
     end
-    
+
     #
     # @return Array<String> A list of hashes
     #
     def hashes
       @options[:hashes]
     end
-    
+
     #
     # @return Integer Global timeout limit
     #
